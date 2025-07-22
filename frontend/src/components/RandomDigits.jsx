@@ -59,16 +59,16 @@ const RandomDigits = () => {
   };
 
   return (
-    <div className="card relative min-h-10 flex-1 flex ">
-      <div className="absolute text-center bg-gray-200 px-4 rounded-sm top-2 left-[50%]">
-        <h2>{count}</h2>
+    <div className="card relative min-h-30 flex-1 flex ">
+      <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-full text-center">
+        <h2 className="text-xl font-semibold">{count}</h2>
       </div>
-      <div className="flex mt-12 items-center justify-center gap-4 ml-[40%]">
+      <div className="absolute top-[60%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-wrap justify-center gap-4">
         <button onClick={startCounter}>Start</button>
         <button onClick={getDigits}>Get Digits</button>
       </div>
       {showData && (
-        <div className="card absolute -ml-2 mt-28  ">
+        <div className="absolute w-full mt-40 flex justify-center">
           <table className="table-auto border mt-4">
             <thead>
               <tr>

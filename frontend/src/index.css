@@ -2,7 +2,10 @@
 
 @layer components {
   .card {
-    @apply my-4 mx-4 flex bg-white shadow-xl outline outline-gray-300 rounded-lg py-2 px-2;
+    @apply my-4  flex bg-white shadow-xl outline outline-gray-300 rounded-lg py-2 px-2;
+  }
+  .clrBtn {
+    @apply text-white px-3 rounded-sm;
   }
 }
 @layer base {
