@@ -78,138 +78,152 @@ import { cityValues } from "../constants/Values";
 import { stateValues } from "../constants/Values";
 
 const Search = () => {
-  const [field, setField] = useState("");
-  const [value, setValue] = useState("");
+  const [filters, setFilters] = useState({
+    gender: "",
+    city: "",
+    state: "",
+  });
+
   const [searchedData, setSearchedData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleField = (e) => {
-    const value = e.target.value;
-    setField(value);
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    //console.log(name, value);
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
-  const handleValue = (e) => {
-    const value = e.target.value;
-    setValue(value);
-  };
-
-  const getField = () => {
-    if (field === "gender") return genderValues;
-    if (field === "city") return cityValues;
-    if (field === "state") return stateValues;
-    return [];
-  };
-  console.log(field, value);
+  // console.log(filters);
   const handleSearch = async () => {
-    setSearchedData([]);
-    const response = await fetch(
-      `http://localhost:4500/user?field=${encodeURIComponent(
-        field
-      )}&value=${encodeURIComponent(value)}`,
-      {
+    if (loading) return;
+    setLoading(true);
+    try {
+      setSearchedData([]);
+      const query = Object.entries(filters)
+        .filter(([_, val]) => val !== "")
+        .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
+        .join("&");
+      //console.log("query", query);
+      const response = await fetch(`http://localhost:4500/user?${query}`, {
         method: "get",
         headers: {
           "content-type": "application/json",
         },
-      }
-    );
-    const results = await response.json();
-    console.log(results);
-
-    // Ensure the structure is valid
-    if (
-      results.res &&
-      results.res.length > 0 &&
-      Array.isArray(results.res[0].names)
-    ) {
-      const entries = results.res[0].names;
-
-      const newData = entries.map((entry) => {
-        const Name = entry.name || { first: "", last: "" };
-        let Phone = entry.phone;
-
-        if (!Phone || (Array.isArray(Phone) && Phone.length === 0)) {
-          Phone = "xxxxxxxxxx";
-        } else if (Array.isArray(Phone)) {
-          Phone = Phone.join(", ");
-        }
-
-        return {
-          firstName: Name.first,
-          lastName: Name.last,
-          phone: Phone,
-        };
       });
+      const results = await response.json();
+      //console.log(results);
+      // Ensure the structure is valid
+      if (
+        results.res &&
+        results.res.length > 0 &&
+        Array.isArray(results.res[0].names)
+      ) {
+        const entries = results.res[0].names;
 
-      setSearchedData(newData);
-      console.log("Data added:", newData);
-    } else {
-      console.log("No data found.");
+        const newData = entries.map((entry) => {
+          const Name = entry.name || { first: "", last: "" };
+          let Phone = entry.phone;
+
+          if (!Phone || (Array.isArray(Phone) && Phone.length === 0)) {
+            Phone = "xxxxxxxxxx";
+          } else if (Array.isArray(Phone)) {
+            Phone = Phone.join(", "); // turns array into readable string
+          }
+
+          return {
+            firstName: Name.first,
+            lastName: Name.last,
+            phone: Phone,
+          };
+        });
+
+        setSearchedData(newData);
+        console.log("Data added:", newData);
+      } else {
+        console.log("No data found.");
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
-
+  // console.log(searchedData);
   return (
-    <div className="absolute min-h-40 w-full card flex-1 flex flex-col gap-4">
-      <div>
-        <label htmlFor="Field">Choose a Field:</label>
+    <div className="  w-full card flex-1 flex flex-col gap-4">
+      <div className="flex flex-col gap-4 p-4 w-full max-w-md">
+        <label>Gender:</label>
         <select
+          name="gender"
           className="border ml-2 mb-2"
-          name="Field"
-          id="Field"
-          onChange={handleField}
+          onChange={handleFilterChange}
         >
-          <option value="">-- Choose Field --</option>
-          <option value="gender">Gender</option>
-          <option value="city">City</option>
-          <option value="state">State</option>
+          <option value="">-- Choose Gender --</option>
+          {genderValues.map((g, i) => (
+            <option key={i} value={g}>
+              {g}
+            </option>
+          ))}
         </select>
-      </div>
-      {field && (
-        <div>
-          <label htmlFor="Value">Choose a Value:</label>
-          <select
-            className="border ml-2"
-            name="Value"
-            id="Value"
-            onChange={handleValue}
-          >
-            <option value="">-- Choose Value --</option>
-            {getField().map((item, i) => (
-              <option key={i} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <button
-        className="absolute max-w-20 left-[40%] top-[70%]"
-        onClick={handleSearch}
-      >
-        Search
-      </button>
-      {searchedData.length !== 0 && (
-        <div className=" absolute w-full mt-40 flex justify-center">
-          <table className="table-auto border mt-4">
-            <thead>
-              <tr>
-                <th className="border px-4 py-2">S.No.</th>
-                <th className="border px-4 py-2">First Name</th>
-                <th className="border px-4 py-2">Last Name</th>
-                <th className="border px-4 py-2">Contact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {searchedData.map((item, index) => (
-                <tr key={index}>
-                  <td className="border px-4 py-2">{index + 1}</td>
-                  <td className="border px-4 py-2">{item.firstName}</td>
-                  <td className="border px-4 py-2">{item.lastName}</td>
-                  <td className="border px-4 py-2">{item.phone}</td>
+
+        <label>City:</label>
+        <select
+          name="city"
+          className="border ml-2 mb-2"
+          onChange={handleFilterChange}
+        >
+          <option value="">-- Choose City --</option>
+          {cityValues.map((c, i) => (
+            <option key={i} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+
+        <label>State:</label>
+        <select
+          name="state"
+          className="border ml-2 mb-2"
+          onChange={handleFilterChange}
+        >
+          <option value="">-- Choose State --</option>
+          {stateValues.map((s, i) => (
+            <option key={i} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        <button onClick={handleSearch} type="button">
+          Search
+        </button>
+        {searchedData.length !== 0 && (
+          <div className=" w-full  flex justify-center">
+            <table className=" relative table-auto border mt-2 ">
+              <thead>
+                <tr>
+                  <th className="border px-4 py-2">S.No.</th>
+                  <th className="border px-4 py-2">First Name</th>
+                  <th className="border px-4 py-2">Last Name</th>
+                  <th className="border px-4 py-2">Contact</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {searchedData.map((item, index) => (
+                  <tr key={index}>
+                    <td className="border px-4 py-2">{index + 1}</td>
+                    <td className="border px-4 py-2">{item.firstName}</td>
+                    <td className="border px-4 py-2">{item.lastName}</td>
+                    <td className="border px-4 py-2">{item.phone}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

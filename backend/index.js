@@ -1,18 +1,59 @@
 const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const { GridFsStorage } = require("multer-gridfs-storage");
+const Grid = require("gridfs-stream");
 const Random = require("./models/randModel");
 const mongoose = require("mongoose");
 const Button = require("./models/buttonModel");
 const User = require("./models//userModel");
+const ImageModel = require("./models/imageModel");
 const cors = require("cors");
 require("./config.js");
 require("dotenv").config();
 const app = express();
-app.use(express.json());
+
 app.use(cors());
 
 const port = process.env.PORT || 5000;
+const conn = mongoose.connection;
 
 app.use(express.json()); // Ensure this is present above all routes
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "public/Images");
+  },
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      file.fieldname + "_" + Date.now() + path.extname(file.originalname)
+    );
+  },
+});
+const upload = multer({ storage: storage }); // CONFIGURED MULTER TO STORE DIRECTLY IN MONGODB USING GFS
+app.post("/upload", upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "File upload failed" });
+  }
+  try {
+    ImageModel.create({ image: req.file.filename });
+    res.status(200).json({ file: req.file });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.get("/getImage", async (req, resp) => {
+  try {
+    const response = await ImageModel.find();
+    const result = await response.json();
+    resp.status(200).json({ data: result });
+  } catch (error) {
+    console.log(error);
+  }
+});
 
 app.post("/rand", async (req, res) => {
   try {
@@ -82,63 +123,35 @@ app.get("/btnStatus", async (req, resp) => {
 });
 
 app.get("/user", async (req, resp) => {
-  const field = req.query.field;
-  const value = req.query.value;
+  console.log(req.query);
+  const { gender, city, state } = req.query;
+  // console.log(gender, city, state);
+  // Build dynamic MongoDB query
+  const query = {};
+  if (gender) query["gender"] = gender;
+  if (city) query["contact.address.city"] = city;
+  if (state) query["contact.address.state"] = state;
 
-  // Map field names to actual paths
-  if (field !== "" && value !== "") {
-    try {
-      const fieldPathMap = {
-        gender: "gender",
-        city: "contact.address.city",
-        state: "contact.address.state",
-      };
-      const mongoField = fieldPathMap[field];
-      if (!mongoField) {
-        return resp.status(400).json({ message: "Invalid field" });
-      }
-      const matchCondition = {
-        [mongoField]: value,
-      };
-      const response = await User.aggregate([
-        { $match: matchCondition },
-        {
-          $group: {
-            _id: null,
-            names: {
-              $push: {
-                name: "$name",
-                phone: { $arrayElemAt: ["$contact.phone", 0] },
-              },
+  try {
+    const result = await User.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          names: {
+            $push: {
+              name: "$name",
+              phone: { $arrayElemAt: ["$contact.phone", 0] },
             },
           },
         },
-      ]);
-      resp.status(200).json({ message: "fetched", res: response });
-    } catch (error) {
-      console.log(error);
-      resp.status(500).json({ message: "Server Error" });
-    }
-  } else {
-    try {
-      const response = await User.aggregate([
-        {
-          $group: {
-            _id: null,
-            names: {
-              $push: {
-                name: "$name",
-                phone: { $arrayElemAt: ["$contact.phone", 0] },
-              },
-            },
-          },
-        },
-      ]);
-      resp.status(200).json({ message: "fetched", res: response });
-    } catch (error) {
-      console.log(error);
-      resp.status(500).json({ message: "Server Error" });
-    }
+      },
+    ]);
+
+    resp.json({ res: result });
+  } catch (err) {
+    console.error(err);
+    resp.status(500).json({ error: "Server Error" });
   }
 });
 
