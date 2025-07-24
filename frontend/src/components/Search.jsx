@@ -72,30 +72,82 @@
 
 // export default Search;
 
-import { useState } from "react";
-import { genderValues } from "../constants/Values";
-import { cityValues } from "../constants/Values";
-import { stateValues } from "../constants/Values";
+import { useEffect, useState } from "react";
 
 const Search = () => {
+  // for fetching final results
   const [filters, setFilters] = useState({
-    gender: "",
-    city: "",
     state: "",
+    city: "",
+    gender: "",
   });
 
+  // for storing user selected state
+  const [state, setState] = useState();
+
+  // for diabling search button
+
+  const [disable, setDisable] = useState(true);
+
+  // for storing array of data coming from database
+  const [stateData, setStateData] = useState([]);
+  const [cityData, setCityData] = useState([]);
   const [searchedData, setSearchedData] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // handling search button disable
+
+  useEffect(() => {
+    if (!filters.state && !filters.city && !filters.gender) {
+      setDisable(true);
+    } else {
+      setDisable(false);
+    }
+  }, [filters]);
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    //console.log(name, value);
+    if (name === "state") {
+      setState(value);
+    }
     setFilters((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
-  // console.log(filters);
+  // fetching states from database
+  useEffect(() => {
+    const fetchStates = async () => {
+      try {
+        const response = await fetch("http://localhost:4500/search/states");
+        const result = await response.json();
+        const states = result.result[0].states;
+
+        setStateData(states);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchStates();
+  }, []);
+
+  // fetching cities based on user state
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:4500/search/cities?state=${state}`
+        );
+        const result = await response.json();
+        const cities = result.result[0].cities;
+
+        setCityData(cities);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchCities();
+  }, [state]);
+  console.log(state);
   const handleSearch = async () => {
     if (loading) return;
     setLoading(true);
@@ -106,12 +158,15 @@ const Search = () => {
         .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
         .join("&");
       //console.log("query", query);
-      const response = await fetch(`http://localhost:4500/user?${query}`, {
-        method: "get",
-        headers: {
-          "content-type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:4500/search/user?${query}`,
+        {
+          method: "get",
+          headers: {
+            "content-type": "application/json",
+          },
+        }
+      );
       const results = await response.json();
       //console.log(results);
       // Ensure the structure is valid
@@ -150,7 +205,10 @@ const Search = () => {
       setLoading(false);
     }
   };
-  // console.log(searchedData);
+  //console.log(searchedData);
+
+  console.log(filters.state, filters.city, filters.gender);
+
   return (
     <div className="  w-full card flex-1 flex flex-col gap-4">
       <div className="flex flex-col gap-4 p-4 w-full max-w-md">
@@ -161,27 +219,14 @@ const Search = () => {
           onChange={handleFilterChange}
         >
           <option value="">-- Choose Gender --</option>
-          {genderValues.map((g, i) => (
-            <option key={i} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
 
-        <label>City:</label>
-        <select
-          name="city"
-          className="border ml-2 mb-2"
-          onChange={handleFilterChange}
-        >
-          <option value="">-- Choose City --</option>
-          {cityValues.map((c, i) => (
-            <option key={i} value={c}>
-              {c}
-            </option>
-          ))}
+          <option key="male" value="male">
+            male
+          </option>
+          <option key="female" value="female">
+            female
+          </option>
         </select>
-
         <label>State:</label>
         <select
           name="state"
@@ -189,14 +234,38 @@ const Search = () => {
           onChange={handleFilterChange}
         >
           <option value="">-- Choose State --</option>
-          {stateValues.map((s, i) => (
+          {stateData.map((s, i) => (
             <option key={i} value={s}>
               {s}
             </option>
           ))}
         </select>
+        {cityData.length > 0 && (
+          <>
+            <label>City:</label>
 
-        <button onClick={handleSearch} type="button">
+            <select
+              name="city"
+              className="border ml-2 mb-2"
+              onChange={handleFilterChange}
+            >
+              <option value="">-- Choose City --</option>
+              {cityData.length > 0 &&
+                cityData.map((c, i) => (
+                  <option key={i} value={c}>
+                    {c}
+                  </option>
+                ))}
+            </select>
+          </>
+        )}
+
+        <button
+          disabled={disable}
+          onClick={handleSearch}
+          type="button"
+          className={`${disable && "bg-blue-200"}`}
+        >
           Search
         </button>
         {searchedData.length !== 0 && (

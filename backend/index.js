@@ -9,6 +9,7 @@ const Button = require("./models/buttonModel");
 const User = require("./models//userModel");
 const ImageModel = require("./models/imageModel");
 const cors = require("cors");
+const { error } = require("console");
 require("./config.js");
 require("dotenv").config();
 const app = express();
@@ -20,6 +21,10 @@ const conn = mongoose.connection;
 
 app.use(express.json()); // Ensure this is present above all routes
 
+app.use(
+  "/public/images",
+  express.static(path.join(__dirname, "/public/images"))
+);
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "public/Images");
@@ -31,13 +36,27 @@ const storage = multer.diskStorage({
     );
   },
 });
-const upload = multer({ storage: storage }); // CONFIGURED MULTER TO STORE DIRECTLY IN MONGODB USING GFS
-app.post("/upload", upload.single("file"), (req, res) => {
+// restricted file size to 5mb and checking type of files
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Invalid file type"), false);
+  },
+  limits: { fileSize: 3 * 1024 * 1024 },
+}); // CONFIGURED MULTER TO STORE DIRECTLY IN MONGODB USING GFS
+app.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "File upload failed" });
   }
   try {
-    ImageModel.create({ image: req.file.filename });
+    await ImageModel.create({ image: req.file.filename });
     res.status(200).json({ file: req.file });
   } catch (error) {
     console.log(error);
@@ -48,10 +67,10 @@ app.post("/upload", upload.single("file"), (req, res) => {
 app.get("/getImage", async (req, resp) => {
   try {
     const response = await ImageModel.find();
-    const result = await response.json();
-    resp.status(200).json({ data: result });
+    resp.status(200).json({ data: response });
   } catch (error) {
     console.log(error);
+    resp.status(500).json({ message: "Internal server error" });
   }
 });
 
@@ -122,7 +141,44 @@ app.get("/btnStatus", async (req, resp) => {
   }
 });
 
-app.get("/user", async (req, resp) => {
+// fetching unique states
+app.get("/search/states", async (req, resp) => {
+  try {
+    const response = await User.aggregate([
+      {
+        $group: { _id: null, states: { $addToSet: "$contact.address.state" } },
+      },
+    ]);
+    resp.status(200).json({ result: response });
+  } catch (error) {
+    console.log(error);
+    resp.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// fetching cities for user selected states
+
+app.get("/search/cities", async (req, resp) => {
+  // console.log(req.query.state);
+  if (!req.query.state) {
+    return resp.status(400).json({ message: "state is not found in query" });
+  }
+  try {
+    const response = await User.aggregate([
+      { $match: { "contact.address.state": req.query.state } },
+      {
+        $group: { _id: null, cities: { $addToSet: "$contact.address.city" } },
+      },
+    ]);
+    resp.status(200).json({ result: response });
+  } catch (error) {
+    console.log(error);
+    resp.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// api for fetching users using all filters combined
+app.get("/search/user", async (req, resp) => {
   console.log(req.query);
   const { gender, city, state } = req.query;
   // console.log(gender, city, state);
