@@ -1,76 +1,34 @@
 const express = require("express");
-const multer = require("multer");
 const path = require("path");
-const { GridFsStorage } = require("multer-gridfs-storage");
-const Grid = require("gridfs-stream");
 const Random = require("./models/randModel");
 const mongoose = require("mongoose");
 const Button = require("./models/buttonModel");
 const User = require("./models//userModel");
-const ImageModel = require("./models/imageModel");
+const upload = require("./middlewares/multer.middleware");
+const { uploadOnCloudinary } = require("./utils/cloudinary");
+
 const cors = require("cors");
-const { error } = require("console");
 require("./config.js");
 require("dotenv").config();
-const app = express();
 
+const app = express();
+app.use(express.json()); // Ensure this is present above all routes
 app.use(cors());
 
 const port = process.env.PORT || 5000;
+
 const conn = mongoose.connection;
 
-app.use(express.json()); // Ensure this is present above all routes
-
-app.use(
-  "/public/images",
-  express.static(path.join(__dirname, "/public/images"))
-);
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "public/Images");
-  },
-  filename: (req, file, cb) => {
-    cb(
-      null,
-      file.fieldname + "_" + Date.now() + path.extname(file.originalname)
-    );
-  },
-});
-// restricted file size to 5mb and checking type of files
-const upload = multer({
-  storage: storage,
-  fileFilter: (req, file, cb) => {
-    const allowed = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "application/pdf",
-    ];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error("Invalid file type"), false);
-  },
-  limits: { fileSize: 3 * 1024 * 1024 },
-}); // CONFIGURED MULTER TO STORE DIRECTLY IN MONGODB USING GFS
 app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "File upload failed" });
-  }
   try {
-    await ImageModel.create({ image: req.file.filename });
-    res.status(200).json({ file: req.file });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ message: "No file provided" });
+    }
 
-app.get("/getImage", async (req, resp) => {
-  try {
-    const response = await ImageModel.find();
-    resp.status(200).json({ data: response });
+    const cloudinaryResponse = await uploadOnCloudinary(req.file.path);
+    res.status(200).json({ url: cloudinaryResponse.secure_url });
   } catch (error) {
-    console.log(error);
-    resp.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ error: "Upload failed" });
   }
 });
 
@@ -217,3 +175,79 @@ app.get("/", (req, resp) => {
 app.listen(port, () => {
   console.log(`app runnning on ${port}`);
 });
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, "public/Images");
+//   },
+//   filename: (req, file, cb) => {
+//     cb(
+//       null,
+//       file.fieldname + "_" + Date.now() + path.extname(file.originalname)
+//     );
+//   },
+// });
+
+// ROUTE TO GET ALL FILES
+
+// app.get("/files", async (req, res) => {
+//   gfs.files.find().toArray((err, files) => {
+//     if (!files || files.length === 0) {
+//       return res.status(404).json({ message: "No files found" });
+//     }
+//     res.json(files);
+//   });
+// });
+
+// multer gridFs not working
+
+/*
+
+
+// Init gfs
+let gfs;
+conn.once("open", () => {
+  console.log("MongoDB connected");
+  gfs = Grid(conn.db, mongoose.mongo);
+  gfs.collection("uploads"); // Set collection name
+});
+
+// configure multer-gridfs-storage
+const storage = new GridFsStorage({
+  url: process.env.MONGO_URI,
+  file: (req, file) => {
+    return {
+      filename: `${Date.now()}-${file.originalname}`,
+      bucketName: "uploads", // Same as gfs.collection()
+    };
+  },
+});
+
+// const upload = multer({ storage });
+
+// restricted file size to 5mb and checking type of files
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Invalid file type"), false);
+  },
+  limits: { fileSize: 3 * 1024 * 1024 },
+}); // CONFIGURED MULTER TO STORE DIRECTLY IN MONGODB USING GFS
+app.post("/upload", upload.single("file"), async (req, res) => {
+  console.log("req.file:", req.file);
+
+  if (!req.file) {
+    return res.status(400).json({ error: "File upload failed" });
+  }
+  res.status(201).json({
+    file: req.file,
+    message: "File uploaded successfully",
+  });
+});
+*/

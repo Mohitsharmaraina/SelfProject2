@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useState, useRef } from "react";
 const RandomDigits = () => {
   const [count, setCount] = useState(10);
@@ -14,6 +15,10 @@ const RandomDigits = () => {
     const result = await response.json();
     console.log(result);
   };
+
+  useEffect(() => {
+    deletedb();
+  }, []);
 
   const setRandomDigits = async () => {
     const response = await fetch("http://localhost:4500/rand", {
@@ -57,6 +62,7 @@ const RandomDigits = () => {
     setApiData(result.data);
     setShowData(true);
   };
+  console.log(apiData);
 
   return (
     <div className="card relative min-h-30 flex-1 flex ">

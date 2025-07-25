@@ -210,9 +210,9 @@ const Search = () => {
   console.log(filters.state, filters.city, filters.gender);
 
   return (
-    <div className="  w-full card flex-1 flex flex-col gap-4">
+    <div className="  w-full card flex-1 flex flex-col ">
       <div className="flex flex-col gap-4 p-4 w-full max-w-md">
-        <label>Gender:</label>
+        <label className="text-blue-400 font-medium">Gender:</label>
         <select
           name="gender"
           className="border ml-2 mb-2"
@@ -227,7 +227,7 @@ const Search = () => {
             female
           </option>
         </select>
-        <label>State:</label>
+        <label className="text-blue-400 font-medium">State:</label>
         <select
           name="state"
           className="border ml-2 mb-2"
@@ -242,7 +242,7 @@ const Search = () => {
         </select>
         {cityData.length > 0 && (
           <>
-            <label>City:</label>
+            <label className="text-blue-400 font-medium">City:</label>
 
             <select
               name="city"

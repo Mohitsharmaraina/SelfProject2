@@ -4,8 +4,9 @@ import axios from "axios";
 const FileUpload = () => {
   // to manage user input file
   const [file, setFile] = useState(null);
-  // to manage files fetched from database
-  const [images, setImages] = useState();
+
+  //url provided by cloudinary on successful upload
+  const [uploadedUrl, setUploadedUrl] = useState("");
 
   // manage file preview
 
@@ -31,28 +32,29 @@ const FileUpload = () => {
     console.log(file);
     if (!file) return alert("Please select a file");
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
+    try {
       const res = await axios.post("http://localhost:4500/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       console.log("Uploaded:", res.data);
+      setUploadedUrl(res.data.url);
       // setImages(res.data);
     } catch (err) {
       console.error(err);
     }
   };
-  const displayImage = async () => {
-    const result = await axios.get("http://localhost:4500/getImage");
-    console.log("images result from backend", result.data.data);
-    setImages(result.data.data);
-  };
-  console.log("image data stored in state", images);
-  useEffect(() => {
-    displayImage();
-  }, []);
+  // const displayImage = async () => {
+  //   const result = await axios.get("http://localhost:4500/getImage");
+  //   console.log("images result from backend", result.data.data);
+  //   setImages(result.data.data);
+  // };
+  // console.log("image data stored in state", images);
+  // useEffect(() => {
+  //   displayImage();
+  // }, []);
 
   useEffect(() => {
     return () => {
@@ -64,19 +66,27 @@ const FileUpload = () => {
 
   return (
     <div className="card w-full">
-      <div className="p-4 flex-1 flex flex-wrap gap-4 w-full max-w-md">
+      <div className="p-4 flex-1 flex flex-wrap  w-full max-w-md">
         <input
-          className="border"
+          className="border p-1 rounded-l-full"
           type="file"
           onChange={handleFileChange}
           accept="image/*,application/pdf"
         />
-        <button onClick={uploadFile}>Upload</button>
+        <input
+          className="uploadBtn "
+          type="submit"
+          value={"Upload"}
+          onClick={uploadFile}
+        />
+        {/* <button onClick={uploadFile} className="uploadBtn">
+          Upload
+        </button> */}
 
         <div>
-          <h2>File preview</h2>
           {previewURL && file && (
             <div className="preview mt-4">
+              <h2>File preview</h2>
               {file.type.startsWith("image/") ? (
                 <img
                   src={previewURL}
@@ -96,7 +106,7 @@ const FileUpload = () => {
             </div>
           )}
         </div>
-        <div>Uploaded Files:</div>
+        {/* <div>Uploaded Files:</div>
         {images &&
           images.map((file) => {
             const isPDF = file.image.endsWith(".pdf");
@@ -117,7 +127,17 @@ const FileUpload = () => {
                 )}
               </div>
             );
-          })}
+          })} */}
+        {uploadedUrl && (
+          <div>
+            <h3>Uploaded File:</h3>
+            {uploadedUrl.endsWith(".pdf") ? (
+              <iframe src={uploadedUrl} width="400" height="400" />
+            ) : (
+              <img src={uploadedUrl} alt="Uploaded" width="200" />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
